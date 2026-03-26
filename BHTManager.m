@@ -259,6 +259,9 @@
 + (BOOL)customVoice {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"custom_voice_upload"];
 }
++ (BOOL)enableXFeatureOverrides {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"enable_x_feature_overrides"];
+}
 + (UIViewController *)BHTSettingsWithAccount:(TFNTwitterAccount *)twAccount {
     SettingsViewController *pref = [[SettingsViewController alloc] initWithTwitterAccount:twAccount];
     [pref.navigationItem setTitleView:[objc_getClass("TFNTitleView") titleViewWithTitle:@"BHTwitter" subtitle:twAccount.displayUsername]];
@@ -283,4 +286,3 @@
 }
 
 @end
-

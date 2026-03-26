@@ -57,5 +57,5 @@
 + (BOOL)dmReplyLater;
 + (BOOL)mediaUpload4k;
 + (BOOL)customVoice;
++ (BOOL)enableXFeatureOverrides;
 @end
-

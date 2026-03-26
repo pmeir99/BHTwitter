@@ -41,12 +41,63 @@ static void batchSwizzlingOnClass(Class cls, NSArray<NSString*>*origSelectors, I
     }
 }
 
+static BOOL BHIsModernXFeatureFlag(NSString *key) {
+    static NSSet<NSString *> *exactFeatureFlags;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        exactFeatureFlags = [NSSet setWithArray:@[
+            @"tweet_edit_api_enabled",
+            @"longform_notetweets_consumption_enabled",
+            @"longform_notetweets_rich_text_read_enabled",
+            @"communities_web_enable_tweet_community_results_fetch",
+            @"communities_enable_tweet_community_results_fetch",
+            @"responsive_web_graphql_exclude_directive_enabled",
+            @"freedom_of_speech_not_reach_fetch_enabled",
+            @"responsive_web_grok_analyze_button_fetch_trends_enabled",
+            @"creator_subscriptions_tweet_preview_api_enabled",
+            @"responsive_web_enhance_cards_enabled",
+            @"view_counts_everywhere_api_enabled",
+            @"standardized_nudges_misinfo",
+            @"articles_preview_enabled"
+        ]];
+    });
+
+    if ([exactFeatureFlags containsObject:key]) {
+        return YES;
+    }
+
+    NSArray<NSString *> *prefixes = @[
+        @"rweb_",
+        @"responsive_web_",
+        @"communities_",
+        @"articles_"
+    ];
+    for (NSString *prefix in prefixes) {
+        if ([key hasPrefix:prefix] &&
+            ([key containsString:@"downvote"] ||
+             [key containsString:@"dislike"] ||
+             [key containsString:@"reply"] ||
+             [key containsString:@"note_tweet"])) {
+            return YES;
+        }
+    }
+
+    if ([key containsString:@"downvote"] ||
+        [key containsString:@"dislike"] ||
+        [key containsString:@"reply_downvote"] ||
+        [key containsString:@"comment_dislike"]) {
+        return YES;
+    }
+
+    return NO;
+}
+
 // MARK: Clean cache and Padlock
 %hook T1AppDelegate
 - (_Bool)application:(UIApplication *)application didFinishLaunchingWithOptions:(id)arg2 {
     %orig;
-    if (![[NSUserDefaults standardUserDefaults] objectForKey:@"FirstRun_4.3"]) {
-        [[NSUserDefaults standardUserDefaults] setValue:@"1strun" forKey:@"FirstRun_4.3"];
+    if (![[NSUserDefaults standardUserDefaults] objectForKey:@"FirstRun_4.4"]) {
+        [[NSUserDefaults standardUserDefaults] setValue:@"1strun" forKey:@"FirstRun_4.4"];
         [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"dw_v"];
         [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"hide_promoted"];
         [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"voice"];
@@ -55,6 +106,7 @@ static void batchSwizzlingOnClass(Class cls, NSArray<NSString*>*origSelectors, I
         [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"disableSensitiveTweetWarnings"];
         [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"disable_immersive_player"];
         [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"custom_voice_upload"];
+        [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"enable_x_feature_overrides"];
     }
     [BHTManager cleanCache];
     return true;
@@ -838,6 +890,10 @@ static void batchSwizzlingOnClass(Class cls, NSArray<NSString*>*origSelectors, I
     if ([key isEqualToString:@"media_upload_4k_enabled"]) {
         if ([BHTManager mediaUpload4k]) return true;
     }
+
+    if ([BHTManager enableXFeatureOverrides] && BHIsModernXFeatureFlag(key)) {
+        return true;
+    }
     
     return %orig;
 }
@@ -1320,4 +1376,3 @@ static void batchSwizzlingOnClass(Class cls, NSArray<NSString*>*origSelectors, I
     }];
     %init;
 }
-
