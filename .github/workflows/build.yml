@@ -12,6 +12,7 @@ on:
         description: "Target iOS Version"
         default: "15.0"
         required: true
+        type: string
       decrypted_ipa_url:
         description: "Direct URL of the decrypted X ipa"
         default: ""
@@ -50,7 +51,11 @@ concurrency:
 jobs:
   build:
     name: Build BHTwitter
-    runs-on: macos-latest
+    # Pin to a specific macOS image to avoid macos-latest migration surprises
+    runs-on: macos-14
+    # Keep Homebrew behavior stable during the tap-trust transition
+    env:
+      HOMEBREW_NO_REQUIRE_TAP_TRUST: 1
     permissions:
       contents: write
 
@@ -83,7 +88,8 @@ jobs:
 
       - name: iOS SDK Caching
         id: SDK
-        uses: actions/cache@v4
+        # bumped to v5 (Node.js 24-ready major) in suggestion below
+        uses: actions/cache@v5
         env:
           cache-name: iOS-${{ inputs.sdk_version }}-SDK
         with:
@@ -154,7 +160,8 @@ jobs:
       - name: Create Draft Release
         if: ${{ inputs.create_release }}
         id: create_release
-        uses: softprops/action-gh-release@v2
+        # bump softprops release action to v3 which is Node.js 24-ready
+        uses: softprops/action-gh-release@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
