@@ -19,9 +19,9 @@ static inline UIViewController *BHTopMostController(void) {
     return top;
 }
 
-static char kHitTestEdgeInsetsKey;   // associated‑object key
+static char kHitTestEdgeInsetsKey;   // associated-object key
 
-// Convenience shim to invoke a superclass selector that isn’t visible at compile‑time
+// Convenience shim to invoke a superclass selector that isn’t visible at compile-time
 static void _bh_callSuperIfPossible(__unsafe_unretained id self,
                                     SEL sel,
                                     id  a1,
@@ -115,7 +115,7 @@ static void _bh_callSuperIfPossible(__unsafe_unretained id self,
 - (id)_t1_imageNamed:(id)name fitSize:(CGSize)size fillColor:(id)fill { return nil; }
 + (id)_t1_imageNamed:(id)name fitSize:(CGSize)size fillColor:(id)fill { return nil; }
 
-#pragma mark ••• Hit‑testing tweaks
+#pragma mark ••• Hit-testing tweaks
 - (void)setTouchInsets:(UIEdgeInsets)insets {
     if ([self.delegate.delegate isKindOfClass:objc_getClass("T1StandardStatusInlineActionsViewAdapter")]) {
         self.imageEdgeInsets = insets;
@@ -142,7 +142,7 @@ static void _bh_callSuperIfPossible(__unsafe_unretained id self,
     return CGRectContainsPoint(UIEdgeInsetsInsetRect(self.bounds, self.hitTestEdgeInsets), pt);
 }
 
-#pragma mark ••• Inline‑action metrics (instance + class)
+#pragma mark ••• Inline-action metrics (instance + class)
 #define BH_METRIC(name, value) \
     - (typeof(value))name { return value; } \
     + (typeof(value))name { return value; }
@@ -150,6 +150,7 @@ static void _bh_callSuperIfPossible(__unsafe_unretained id self,
 BH_METRIC(extraWidth,                 40.0)
 BH_METRIC(extraWidthWithStyle,        40.0)
 BH_METRIC(trailingEdgeInset,          6.0)
+BH_METRIC(horizontalLayoutOffset,     0.0)
 BH_METRIC(visibility,                 1)
 BH_METRIC(alternateInlineActionType,  6)
 BH_METRIC(touchInsetPriority,         2)
@@ -218,7 +219,7 @@ BH_METRIC(displayType,                0)
                 [mediaEntities enumerateObjectsUsingBlock:^(TFSTwitterEntityMedia *obj, NSUInteger idx, BOOL *stop) {
                     if (obj.mediaType == 2 || obj.mediaType == 3) {
                         TFNActionItem *videoGroup = [objc_getClass("TFNActionItem") actionItemWithTitle:[NSString stringWithFormat:@"Video %lu", (unsigned long)idx + 1]
-                                                                                           imageName:@"arrow_down_circle_stroke" action:^{
+                                                                                              imageName:@"arrow_down_circle_stroke" action:^{
                             for (TFSTwitterEntityMediaVideoVariant *variant in obj.videoInfo.variants) {
                                 if ([variant.contentType isEqualToString:@"video/mp4"])          [innerActions addObject:makeMP4Item([NSURL URLWithString:variant.url])];
                                 if ([variant.contentType isEqualToString:@"application/x-mpegURL"]) [innerActions addObject:makeM3U8Item([NSURL URLWithString:variant.url])];
@@ -275,4 +276,5 @@ BH_METRIC(displayType,                0)
 - (BOOL)enabled                { return YES; }
 - (NSString *)actionSheetTitle { return @"BHDownload"; }
 - (NSUInteger)inlineActionType { return self->_inlineActionType; }
+
 @end
