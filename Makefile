@@ -1,6 +1,7 @@
 ARCHS = arm64
 TARGET := iphone:clang:latest:14.0
 INSTALL_TARGET_PROCESSES = Twitter
+
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = BHTwitter
@@ -17,6 +18,10 @@ include $(THEOS_MAKE_PATH)/tweak.mk
 
 ifdef SIDELOADED
 SUBPROJECTS += keychainfix
+endif
+
+ifdef OPEN_IN_X
+SUBPROJECTS += OpenInX
 endif
 
 include $(THEOS_MAKE_PATH)/aggregate.mk
