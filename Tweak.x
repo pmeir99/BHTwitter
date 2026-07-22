@@ -41,6 +41,27 @@ static void batchSwizzlingOnClass(Class cls, NSArray<NSString*>*origSelectors, I
     }
 }
 
+static NSURL *BHTranslateOpenInXURL(NSURL *url) {
+    if (url == nil || ![url isKindOfClass:[NSURL class]]) {
+        return url;
+    }
+
+    NSString *scheme = url.scheme.lowercaseString;
+    if (![scheme isEqualToString:@"bhtwitter"]) {
+        return url;
+    }
+
+    NSURLComponents *components = [NSURLComponents componentsWithURL:url resolvingAgainstBaseURL:NO];
+    if (components == nil) {
+        return url;
+    }
+
+    components.scheme = @"twitter";
+    NSURL *translatedURL = components.URL;
+    NSLog(@"[BHTwitter] Open in X translated %@ to %@", url.absoluteString, translatedURL.absoluteString);
+    return translatedURL ?: url;
+}
+
 // MARK: Clean cache and Padlock
 %hook T1AppDelegate
 - (_Bool)application:(UIApplication *)application didFinishLaunchingWithOptions:(id)arg2 {
@@ -58,6 +79,19 @@ static void batchSwizzlingOnClass(Class cls, NSArray<NSString*>*origSelectors, I
     }
     [BHTManager cleanCache];
     return true;
+}
+
+- (_Bool)application:(UIApplication *)application
+              openURL:(NSURL *)url
+              options:(NSDictionary *)options {
+    return %orig(application, BHTranslateOpenInXURL(url), options);
+}
+
+- (_Bool)application:(UIApplication *)application
+              openURL:(NSURL *)url
+     sourceApplication:(NSString *)sourceApplication
+            annotation:(id)annotation {
+    return %orig(application, BHTranslateOpenInXURL(url), sourceApplication, annotation);
 }
 
 - (void)applicationDidBecomeActive:(id)arg1 {
@@ -1320,4 +1354,3 @@ static void batchSwizzlingOnClass(Class cls, NSArray<NSString*>*origSelectors, I
     }];
     %init;
 }
-
