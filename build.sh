@@ -9,6 +9,38 @@ set_plist_string() {
   /usr/libexec/PlistBuddy -c "Add :$key string $value" "$plist_path"
 }
 
+add_bhtwitter_url_scheme() {
+  local plist_path="$1"
+
+  python3 - "$plist_path" <<'PY'
+import plistlib
+import sys
+
+plist_path = sys.argv[1]
+
+with open(plist_path, "rb") as plist_file:
+    raw_plist = plist_file.read()
+
+plist_format = plistlib.FMT_BINARY if raw_plist.startswith(b"bplist") else plistlib.FMT_XML
+plist = plistlib.loads(raw_plist)
+url_types = plist.setdefault("CFBundleURLTypes", [])
+
+scheme_exists = any(
+    "bhtwitter" in url_type.get("CFBundleURLSchemes", [])
+    for url_type in url_types
+)
+
+if not scheme_exists:
+    url_types.append({
+        "CFBundleURLName": "com.bhtwitter.open-in-x",
+        "CFBundleURLSchemes": ["bhtwitter"],
+    })
+
+with open(plist_path, "wb") as plist_file:
+    plistlib.dump(plist, plist_file, fmt=plist_format, sort_keys=False)
+PY
+}
+
 patch_ipa_privacy_strings() {
   local input_ipa="$1"
   local output_ipa="$2"
@@ -57,6 +89,14 @@ patch_ipa_privacy_strings() {
   set_plist_string "$info_plist" "NSPhotoLibraryUsageDescription" "Twitter needs photo library access to select media."
   set_plist_string "$info_plist" "NSPhotoLibraryAddUsageDescription" "Twitter needs photo library access to save media."
 
+  add_bhtwitter_url_scheme "$info_plist"
+
+  if [ $? -ne 0 ]; then
+    echo -e '\033[1m\033[31mFailed to add the bhtwitter URL scheme.\033[0m'
+    rm -rf "$tmp_dir"
+    return 1
+  fi
+
   (
     cd "$tmp_dir" || exit 1
     zip -qry "$output_abs" Payload
@@ -82,7 +122,7 @@ case "$BUILD_MODE" in
 
     make clean
     rm -rf .theos
-    make SIDELOADED=1
+    make SIDELOADED=1 OPEN_IN_X=1
 
     if [ $? -eq 0 ]; then
       echo -e '\033[1m\033[32mMake command succeeded.\033[0m'
@@ -104,8 +144,18 @@ case "$BUILD_MODE" in
 
       echo -e '\033[1m\033[32mBuilding the IPA.\033[0m'
 
-      cyan -i packages/com.atebits.Tweetie2.privacy.ipa -o packages/BHTwitter-sideloaded --ignore-encrypted \
-        -uwf .theos/obj/debug/keychainfix.dylib .theos/obj/debug/BHTwitter.dylib layout/Library/Application\ Support/BHT/BHTwitter.bundle
+      cyan \
+        -i packages/com.atebits.Tweetie2.privacy.ipa \
+        -o packages/BHTwitter-sideloaded \
+        --ignore-encrypted \
+        --remove-extensions \
+        -u \
+        -w \
+        -f \
+        .theos/obj/debug/keychainfix.dylib \
+        .theos/obj/debug/BHTwitter.dylib \
+        layout/Library/Application\ Support/BHT/BHTwitter.bundle \
+        .theos/obj/debug/OpenInX.appex
 
       echo -e '\033[1m\033[32mDone, thanks for using BHTwitter.\033[0m'
     else
@@ -135,7 +185,7 @@ case "$BUILD_MODE" in
 
     make clean
     rm -rf .theos
-    make
+    make OPEN_IN_X=1
 
     if [ $? -eq 0 ]; then
       echo -e '\033[1m\033[32mMake command succeeded.\033[0m'
@@ -157,8 +207,17 @@ case "$BUILD_MODE" in
 
       echo -e '\033[1m\033[32mBuilding the IPA.\033[0m'
 
-      cyan -i packages/com.atebits.Tweetie2.privacy.ipa -o packages/BHTwitter-trollstore.tipa --ignore-encrypted \
-        -uwf .theos/obj/debug/BHTwitter.dylib layout/Library/Application\ Support/BHT/BHTwitter.bundle
+      cyan \
+        -i packages/com.atebits.Tweetie2.privacy.ipa \
+        -o packages/BHTwitter-trollstore.tipa \
+        --ignore-encrypted \
+        --remove-extensions \
+        -u \
+        -w \
+        -f \
+        .theos/obj/debug/BHTwitter.dylib \
+        layout/Library/Application\ Support/BHT/BHTwitter.bundle \
+        .theos/obj/debug/OpenInX.appex
 
       echo -e '\033[1m\033[32mDone, thanks for using BHTwitter.\033[0m'
     else

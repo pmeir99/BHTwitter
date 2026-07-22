@@ -1,0 +1,37 @@
+{
+  "manifest_version": 2,
+  "name": "Open in X",
+  "description": "Open the current x.com or twitter.com page in BHTwitter.",
+  "version": "1.0",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "*://x.com/*",
+    "*://*.x.com/*",
+    "*://twitter.com/*",
+    "*://*.twitter.com/*"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ],
+    "persistent": false
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://x.com/*",
+        "*://*.x.com/*",
+        "*://twitter.com/*",
+        "*://*.twitter.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_action": {
+    "default_title": "Open in X"
+  }
+}
