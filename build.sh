@@ -157,6 +157,11 @@ case "$BUILD_MODE" in
         layout/Library/Application\ Support/BHT/BHTwitter.bundle \
         .theos/obj/debug/OpenInX.appex
 
+      if [ $? -ne 0 ]; then
+        echo -e '\033[1m\033[31mFailed to build the sideloaded IPA.\033[0m'
+        exit 1
+      fi
+
       echo -e '\033[1m\033[32mDone, thanks for using BHTwitter.\033[0m'
     else
       echo -e '\033[1m\033[0;31mpackages/com.atebits.Tweetie2.ipa not found.\033[0m'
@@ -218,6 +223,11 @@ case "$BUILD_MODE" in
         .theos/obj/debug/BHTwitter.dylib \
         layout/Library/Application\ Support/BHT/BHTwitter.bundle \
         .theos/obj/debug/OpenInX.appex
+
+      if [ $? -ne 0 ]; then
+        echo -e '\033[1m\033[31mFailed to build the TrollStore IPA.\033[0m'
+        exit 1
+      fi
 
       echo -e '\033[1m\033[32mDone, thanks for using BHTwitter.\033[0m'
     else

@@ -131,6 +131,86 @@ jobs:
         env:
           THEOS: ${{ github.workspace }}/theos
 
+      - name: Verify Open in X Extension
+        if: inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore'
+        run: |
+          cd ${{ github.workspace }}/main
+
+          if [ "${{ inputs.deploy_format }}" = "sideloaded" ]; then
+            ARTIFACT="$(find packages -maxdepth 1 -type f -name 'BHTwitter-sideloaded*.ipa' -print -quit)"
+          else
+            ARTIFACT="$(find packages -maxdepth 1 -type f -name 'BHTwitter-trollstore*.tipa' -print -quit)"
+          fi
+
+          if [ -z "$ARTIFACT" ]; then
+            echo "The expected BHTwitter build artifact was not created."
+            exit 1
+          fi
+
+          VERIFY_DIR="$(mktemp -d)"
+          trap 'rm -rf "$VERIFY_DIR"' EXIT
+          unzip -q "$ARTIFACT" -d "$VERIFY_DIR"
+
+          APP_DIR="$(find "$VERIFY_DIR/Payload" -maxdepth 1 -type d -name '*.app' -print -quit)"
+          APPEX_DIR="$APP_DIR/PlugIns/OpenInX.appex"
+
+          if [ -z "$APP_DIR" ] || [ ! -d "$APPEX_DIR" ]; then
+            echo "OpenInX.appex is missing from the built app."
+            exit 1
+          fi
+
+          test -f "$APPEX_DIR/OpenInX"
+          test -f "$APPEX_DIR/Info.plist"
+          test -f "$APPEX_DIR/manifest.json"
+          test -f "$APPEX_DIR/background.js"
+          test -f "$APPEX_DIR/content.js"
+
+          APPEX_COUNT="$(find "$APP_DIR/PlugIns" -mindepth 1 -maxdepth 1 -type d -name '*.appex' | wc -l | tr -d ' ')"
+          if [ "$APPEX_COUNT" -ne 1 ]; then
+            echo "Expected exactly one app extension, found $APPEX_COUNT."
+            exit 1
+          fi
+
+          python3 - "$APP_DIR/Info.plist" "$APPEX_DIR/Info.plist" "$APPEX_DIR/manifest.json" <<'PY'
+          import json
+          import plistlib
+          import sys
+
+          main_plist_path, extension_plist_path, manifest_path = sys.argv[1:]
+
+          with open(main_plist_path, "rb") as plist_file:
+              main_plist = plistlib.load(plist_file)
+
+          schemes = {
+              scheme
+              for url_type in main_plist.get("CFBundleURLTypes", [])
+              for scheme in url_type.get("CFBundleURLSchemes", [])
+          }
+          if "bhtwitter" not in schemes:
+              raise SystemExit("The bhtwitter URL scheme is missing from the app Info.plist.")
+
+          with open(extension_plist_path, "rb") as plist_file:
+              extension_plist = plistlib.load(plist_file)
+
+          extension_point = extension_plist.get("NSExtension", {}).get("NSExtensionPointIdentifier")
+          if extension_point != "com.apple.Safari.web-extension":
+              raise SystemExit("OpenInX.appex is not registered as a Safari Web Extension.")
+
+          with open(manifest_path, encoding="utf-8") as manifest_file:
+              manifest = json.load(manifest_file)
+
+          matches = {
+              match
+              for content_script in manifest.get("content_scripts", [])
+              for match in content_script.get("matches", [])
+          }
+          required_matches = {"*://x.com/*", "*://twitter.com/*"}
+          if not required_matches.issubset(matches):
+              raise SystemExit("The Open in X manifest is missing required website matches.")
+
+          print("Verified OpenInX.appex, its Safari manifest, and the bhtwitter URL scheme.")
+          PY
+
       - name: Rename IPA to include IPA version
         if: inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore'
         run: |
