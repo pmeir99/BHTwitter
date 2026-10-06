@@ -50,6 +50,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (nullable NSString *)actionSheetTitle;
 - (BOOL)enabled;
 
+- (void)DownloadHandler:(UIButton *)sender;
+
 // Status update methods
 - (void)statusDidUpdate:(id)status
                 options:(NSUInteger)options
