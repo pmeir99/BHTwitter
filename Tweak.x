@@ -62,6 +62,45 @@ static NSURL *BHTranslateOpenInXURL(NSURL *url) {
     return translatedURL ?: url;
 }
 
+// MARK: FLEX diagnostic explorer (bookmark-download-test only)
+// Triple-tap with three fingers anywhere in X to show FLEX.
+static void BHShowFLEXExplorer(void) {
+    Class managerClass = NSClassFromString(@"FLEXManager");
+    if (!managerClass || ![managerClass respondsToSelector:NSSelectorFromString(@"sharedManager")]) {
+        NSLog(@"[BHTwitter/FLEX] FLEXManager is unavailable");
+        return;
+    }
+
+    id manager = [managerClass performSelector:NSSelectorFromString(@"sharedManager")];
+    if ([manager respondsToSelector:NSSelectorFromString(@"showExplorer")]) {
+        [manager performSelector:NSSelectorFromString(@"showExplorer")];
+    }
+}
+
+static void BHInstallFLEXGesture(UIWindow *window) {
+    if (!window || [window viewWithTag:0xB4F1E] != nil) return;
+
+    UIView *gestureHost = [[UIView alloc] initWithFrame:CGRectZero];
+    gestureHost.tag = 0xB4F1E;
+    gestureHost.hidden = YES;
+    [window addSubview:gestureHost];
+
+    UITapGestureRecognizer *gesture = [[UITapGestureRecognizer alloc] initWithTarget:(id)UIApplication.sharedApplication.delegate action:@selector(bh_showFLEX:)];
+    gesture.numberOfTouchesRequired = 3;
+    gesture.numberOfTapsRequired = 3;
+    gesture.cancelsTouchesInView = NO;
+    [window addGestureRecognizer:gesture];
+}
+
+%hook T1AppDelegate
+%new
+- (void)bh_showFLEX:(UITapGestureRecognizer *)gesture {
+    if (gesture.state == UIGestureRecognizerStateRecognized) {
+        BHShowFLEXExplorer();
+    }
+}
+%end
+
 // MARK: Clean cache and Padlock
 %hook T1AppDelegate
 - (_Bool)application:(UIApplication *)application didFinishLaunchingWithOptions:(id)arg2 {
@@ -78,6 +117,9 @@ static NSURL *BHTranslateOpenInXURL(NSURL *url) {
         [[NSUserDefaults standardUserDefaults] setBool:true forKey:@"custom_voice_upload"];
     }
     [BHTManager cleanCache];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        BHInstallFLEXGesture(self.window);
+    });
     return true;
 }
 
