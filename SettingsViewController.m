@@ -241,6 +241,8 @@ static UIFont *TwitterChirpFont(TwitterFontStyle style) {
 
         PSSpecifier *hideBookmarkButton = [self newSwitchCellWithTitle:[[BHTBundle sharedBundle] localizedStringForKey:@"HIDE_MARKBOOK_BUTTON_OPTION_TITLE"] detailTitle:[[BHTBundle sharedBundle] localizedStringForKey:@"HIDE_MARKBOOK_BUTTON_OPTION_DETAIL_TITLE"] key:@"hide_bookmark_button" defaultValue:false changeAction:nil];
 
+        PSSpecifier *replaceBookmarkWithDownload = [self newSwitchCellWithTitle:@"Replace Bookmark with Download" detailTitle:@"On video posts, use BHTwitter's download action in X's bookmark slot. Experimental: also tests whether the immersive player uses the shared bookmark control." key:@"replace_bookmark_with_download" defaultValue:false changeAction:nil];
+
         PSSpecifier *forceFullFrame = [self newSwitchCellWithTitle:[[BHTBundle sharedBundle] localizedStringForKey:@"FORCE_TWEET_FULL_FRAME_TITLE"] detailTitle:nil key:@"force_tweet_full_frame" defaultValue:false changeAction:nil];
         
         PSSpecifier *showScrollIndicator = [self newSwitchCellWithTitle:[[BHTBundle sharedBundle] localizedStringForKey:@"SHOW_SCOLL_INDICATOR_OPTION_TITLE"] detailTitle:nil key:@"showScollIndicator" defaultValue:false changeAction:nil];
@@ -309,6 +311,7 @@ static UIFont *TwitterChirpFont(TwitterFontStyle style) {
             customDirectBackgroundView,
             hideViewCount,
             hideBookmarkButton,
+            replaceBookmarkWithDownload,
             forceFullFrame,
             showScrollIndicator,
             font,
