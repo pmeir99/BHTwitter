@@ -6,13 +6,15 @@ include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = BHTwitter
 
-BHTwitter_FILES = Tweak.x BHTPermissionRequester.xm $(wildcard *.m BHDownload/*.m BHTBundle/*.m Colours/*.m JGProgressHUD/*.m SAMKeychain/*.m AppIcon/*.m CustomTabBar/*.m ThemeColor/*.m)
+FLEX_FILES = $(shell find FLEX/Classes -type f \( -name '*.m' -o -name '*.mm' -o -name '*.c' \) ! -path 'FLEX/Classes/Headers/*' 2>/dev/null)
+BHTwitter_FILES = Tweak.x BHTPermissionRequester.xm $(wildcard *.m BHDownload/*.m BHTBundle/*.m Colours/*.m JGProgressHUD/*.m SAMKeychain/*.m AppIcon/*.m CustomTabBar/*.m ThemeColor/*.m) $(FLEX_FILES)
 BHTwitter_FRAMEWORKS = UIKit Foundation AVFoundation AVKit CoreMotion GameController VideoToolbox Accelerate CoreMedia CoreImage CoreGraphics ImageIO Photos CoreServices SystemConfiguration SafariServices Security QuartzCore WebKit SceneKit
 BHTwitter_PRIVATE_FRAMEWORKS = Preferences
 BHTwitter_EXTRA_FRAMEWORKS = Cephei CepheiPrefs CepheiUI
 BHTwitter_OBJ_FILES = $(shell find lib -name '*.a')
 BHTwitter_LIBRARIES = sqlite3 bz2 c++ iconv z
-BHTwitter_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -Wno-nullability-completeness -Wno-unused-function -Wno-unused-property-ivar -Wno-error
+BHTwitter_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -Wno-nullability-completeness -Wno-unused-function -Wno-unused-property-ivar -Wno-unsupported-availability-guard -Wno-error -IFLEX/Classes
+BHTwitter_CCFLAGS = -std=gnu++11
 
 include $(THEOS_MAKE_PATH)/tweak.mk
 
