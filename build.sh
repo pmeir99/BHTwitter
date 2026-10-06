@@ -41,6 +41,29 @@ with open(plist_path, "wb") as plist_file:
 PY
 }
 
+patch_playcover_compatibility() {
+  local plist_path="$1"
+  python3 - "$plist_path" <<'PY'
+import plistlib, sys
+p=sys.argv[1]
+raw=open(p,"rb").read()
+fmt=plistlib.FMT_BINARY if raw.startswith(b"bplist") else plistlib.FMT_XML
+d=plistlib.loads(raw)
+d["UIDeviceFamily"]=[1,2]
+d["UIRequiresFullScreen"]=False
+d["UIApplicationSupportsIndirectInputEvents"]=True
+o=["UIInterfaceOrientationPortrait","UIInterfaceOrientationLandscapeLeft","UIInterfaceOrientationLandscapeRight","UIInterfaceOrientationPortraitUpsideDown"]
+d["UISupportedInterfaceOrientations"]=o
+d["UISupportedInterfaceOrientations~ipad"]=o
+caps=d.get("UIRequiredDeviceCapabilities")
+blocked={"telephony","gps","location-services","camera-flash","arkit"}
+if isinstance(caps,list): d["UIRequiredDeviceCapabilities"]=[x for x in caps if x not in blocked]
+elif isinstance(caps,dict):
+    for k in blocked: caps.pop(k,None)
+with open(p,"wb") as f: plistlib.dump(d,f,fmt=fmt,sort_keys=False)
+PY
+}
+
 patch_ipa_privacy_strings() {
   local input_ipa="$1"
   local output_ipa="$2"
@@ -90,6 +113,11 @@ patch_ipa_privacy_strings() {
   set_plist_string "$info_plist" "NSPhotoLibraryAddUsageDescription" "Twitter needs photo library access to save media."
 
   add_bhtwitter_url_scheme "$info_plist"
+
+  if [ "${BHT_PLAYCOVER_BUILD:-0}" = "1" ]; then
+    echo -e '\033[1m\033[32mApplying PlayCover/macOS compatibility patches.\033[0m'
+    patch_playcover_compatibility "$info_plist"
+  fi
 
   if [ $? -ne 0 ]; then
     echo -e '\033[1m\033[31mFailed to add the bhtwitter URL scheme.\033[0m'
@@ -165,6 +193,24 @@ case "$BUILD_MODE" in
       echo -e '\033[1m\033[32mDone, thanks for using BHTwitter.\033[0m'
     else
       echo -e '\033[1m\033[0;31mpackages/com.atebits.Tweetie2.ipa not found.\033[0m'
+      exit 1
+    fi
+    ;;
+
+  --playcover|playcover)
+    echo -e '\033[1m\033[32mBuilding experimental PlayCover/macOS IPA.\033[0m'
+    make clean
+    rm -rf .theos
+    make SIDELOADED=1
+    [ $? -eq 0 ] || exit 1
+
+    if [ -e ./packages/com.atebits.Tweetie2.ipa ]; then
+      export BHT_PLAYCOVER_BUILD=1
+      patch_ipa_privacy_strings "packages/com.atebits.Tweetie2.ipa" "packages/com.atebits.Tweetie2.playcover.ipa" || exit 1
+      cyan -i packages/com.atebits.Tweetie2.playcover.ipa -o packages/BHTwitter-playcover.ipa --ignore-encrypted --remove-extensions -u -w -f .theos/obj/debug/keychainfix.dylib .theos/obj/debug/BHTwitter.dylib layout/Library/Application\ Support/BHT/BHTwitter.bundle || exit 1
+      echo -e '\033[1m\033[32mCreated packages/BHTwitter-playcover.ipa\033[0m'
+    else
+      echo -e '\033[1m\033[31mpackages/com.atebits.Tweetie2.ipa not found.\033[0m'
       exit 1
     fi
     ;;
@@ -254,7 +300,7 @@ case "$BUILD_MODE" in
 
   *)
     echo -e "\033[1m\033[31mUnknown build option: $BUILD_MODE\033[0m"
-    echo "Usage: ./build.sh [--rootfull|--rootless|--sideloaded|--trollstore]"
+    echo "Usage: ./build.sh [--rootfull|--rootless|--sideloaded|--trollstore|--playcover]"
     exit 1
     ;;
 esac
