@@ -247,6 +247,9 @@
 + (BOOL)hideBookmarkButton {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"hide_bookmark_button"];
 }
++ (BOOL)replaceBookmarkWithDownload {
+    return [[NSUserDefaults standardUserDefaults] boolForKey:@"replace_bookmark_with_download"];
+}
 + (BOOL)voiceCreationEnabled {
     return [[NSUserDefaults standardUserDefaults] boolForKey:@"voice_creation_enabled"];
 }
