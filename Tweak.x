@@ -240,6 +240,47 @@ static void BHShowFLEXExplorer(void) {
     }
 }
 
+static BHDownloadInlineButton *BHFindImmersiveDownloadButtonInView(UIView *view) {
+    if (!view) return nil;
+
+    if ([NSStringFromClass(view.class) isEqualToString:@"T1TwitterSwift.ImmersiveActionView"] &&
+        BHIsImmersiveBookmarkActionView(view)) {
+        BHConfigureImmersiveDownloadButton(view);
+        BHDownloadInlineButton *button = objc_getAssociatedObject(view, kBHImmersiveDownloadButtonKey);
+        if (button && !view.hidden && view.window) return button;
+    }
+
+    for (UIView *subview in view.subviews) {
+        BHDownloadInlineButton *found = BHFindImmersiveDownloadButtonInView(subview);
+        if (found) return found;
+    }
+    return nil;
+}
+
+static void BHShowCurrentImmersiveDownloadMenu(void) {
+    UIWindow *window = UIApplication.sharedApplication.keyWindow;
+    if (!window) {
+        for (UIWindow *candidate in UIApplication.sharedApplication.windows) {
+            if (!candidate.hidden && candidate.alpha > 0.0) {
+                window = candidate;
+                break;
+            }
+        }
+    }
+
+    BHDownloadInlineButton *button = BHFindImmersiveDownloadButtonInView(window);
+    if (button) {
+        [button DownloadHandler:button];
+        return;
+    }
+
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"BHTwitter"
+                                                                   message:@"No active immersive video download control was found."
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    [alert addAction:[UIAlertAction actionWithTitle:@"OK" style:UIAlertActionStyleDefault handler:nil]];
+    [topMostController() presentViewController:alert animated:YES completion:nil];
+}
+
 static void BHInstallFLEXGesture(UIWindow *window) {
     if (!window || [window viewWithTag:0xB4F1E] != nil) return;
 
@@ -253,6 +294,15 @@ static void BHInstallFLEXGesture(UIWindow *window) {
     gesture.numberOfTapsRequired = 3;
     gesture.cancelsTouchesInView = NO;
     [window addGestureRecognizer:gesture];
+
+    // Temporary download-menu shortcut: double-tap with three fingers.
+    // FLEX remains triple-tap with three fingers.
+    UITapGestureRecognizer *downloadGesture = [[UITapGestureRecognizer alloc] initWithTarget:(id)UIApplication.sharedApplication.delegate action:@selector(bh_showImmersiveDownloadMenu:)];
+    downloadGesture.numberOfTouchesRequired = 3;
+    downloadGesture.numberOfTapsRequired = 2;
+    downloadGesture.cancelsTouchesInView = NO;
+    [gesture requireGestureRecognizerToFail:downloadGesture];
+    [window addGestureRecognizer:downloadGesture];
 }
 
 %hook T1AppDelegate
