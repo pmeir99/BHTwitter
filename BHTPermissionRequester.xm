@@ -1,6 +1,14 @@
 #import <UIKit/UIKit.h>
 #import <AVFoundation/AVFoundation.h>
 
+static BOOL BHTIsRunningAsIOSAppOnMac(void) {
+    NSProcessInfo *processInfo = [NSProcessInfo processInfo];
+    if (@available(iOS 14.0, *)) {
+        return processInfo.isiOSAppOnMac;
+    }
+    return NO;
+}
+
 static BOOL BHTIsTwitterBundle(void) {
     NSString *bundleID = [[NSBundle mainBundle] bundleIdentifier];
 
@@ -40,7 +48,7 @@ static void BHTRequestMicrophonePermissionIfNeeded(void) {
 }
 
 static void BHTRequestMediaPermissionsIfNeeded(void) {
-    if (!BHTIsTwitterBundle()) {
+    if (!BHTIsTwitterBundle() || BHTIsRunningAsIOSAppOnMac()) {
         return;
     }
 
