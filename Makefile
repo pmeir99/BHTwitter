@@ -13,7 +13,8 @@ BHTwitter_PRIVATE_FRAMEWORKS = Preferences
 BHTwitter_EXTRA_FRAMEWORKS = Cephei CepheiPrefs CepheiUI
 BHTwitter_OBJ_FILES = $(shell find lib -name '*.a')
 BHTwitter_LIBRARIES = sqlite3 bz2 c++ iconv z
-BHTwitter_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -Wno-nullability-completeness -Wno-unused-function -Wno-unused-property-ivar -Wno-unsupported-availability-guard -Wno-error -IFLEX/Classes
+FLEX_INCLUDE_DIRS = $(shell find FLEX/Classes -type d 2>/dev/null | sed 's|^|-I|')
+BHTwitter_CFLAGS = -fobjc-arc -Wno-deprecated-declarations -Wno-nullability-completeness -Wno-unused-function -Wno-unused-property-ivar -Wno-unsupported-availability-guard -Wno-error $(FLEX_INCLUDE_DIRS)
 BHTwitter_CCFLAGS = -std=gnu++11
 
 include $(THEOS_MAKE_PATH)/tweak.mk
