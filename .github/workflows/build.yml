@@ -27,6 +27,7 @@ on:
           - rootfull
           - sideloaded
           - trollstore
+          - playcover
           - rootless
       commit_id:
         description: "(Optional) Commit ID to build at"
@@ -81,7 +82,7 @@ jobs:
           submodules: recursive
 
       - name: Install cyan
-        if: inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore'
+        if: inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore' || inputs.deploy_format == 'playcover'
         run: pip install https://github.com/asdfzxcvbn/pyzule-rw/archive/main.zip
 
       - name: iOS SDK Caching
@@ -112,7 +113,7 @@ jobs:
           echo "$BHTWITTER_VERSION"
 
       - name: Prepare X iPA
-        if: inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore'
+        if: inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore' || inputs.deploy_format == 'playcover'
         run: |
           wget "$IPA_URL" --no-verbose -O main/packages/com.atebits.Tweetie2.ipa
           unzip -q main/packages/com.atebits.Tweetie2.ipa -d main/tmp
@@ -132,14 +133,17 @@ jobs:
           THEOS: ${{ github.workspace }}/theos
 
       - name: Verify Open in X Extension
-        if: inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore'
+        if: inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore' || inputs.deploy_format == 'playcover'
         run: |
           cd ${{ github.workspace }}/main
 
           if [ "${{ inputs.deploy_format }}" = "sideloaded" ]; then
             ARTIFACT="$(find packages -maxdepth 1 -type f -name 'BHTwitter-sideloaded*.ipa' -print -quit)"
-          else
+          elif [ "${{ inputs.deploy_format }}" = "trollstore" ]; then
             ARTIFACT="$(find packages -maxdepth 1 -type f -name 'BHTwitter-trollstore*.tipa' -print -quit)"
+          else
+            echo "Skipping OpenInX verification for PlayCover build."
+            exit 0
           fi
 
           if [ -z "$ARTIFACT" ]; then
@@ -212,7 +216,7 @@ jobs:
           PY
 
       - name: Rename IPA to include IPA version
-        if: inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore'
+        if: inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore' || inputs.deploy_format == 'playcover'
         run: |
           mv "main/packages/$(ls -t main/packages | head -n1)" \
              "main/packages/BHTwitter-${{ inputs.deploy_format }}_${{ env.BHTWITTER_VERSION }}_${{ env.X_VERSION }}.${IPA_EXT}"
