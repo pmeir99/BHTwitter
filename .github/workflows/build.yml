@@ -123,6 +123,10 @@ jobs:
         env:
           IPA_URL: ${{ inputs.decrypted_ipa_url }}
 
+      - name: Fetch FLEX diagnostic sources
+        run: |
+          git clone --depth=1 --branch 5.22.10 https://github.com/FLEXTool/FLEX.git main/FLEX
+
       - name: Build Package
         run: |
           cd ${{ github.workspace }}/main
