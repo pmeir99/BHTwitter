@@ -53,6 +53,7 @@
 + (BOOL)changeBackground;
 + (bool)backgroundImage;
 + (BOOL)hideBookmarkButton;
++ (BOOL)replaceBookmarkWithDownload;
 + (BOOL)voiceCreationEnabled;
 + (BOOL)dmReplyLater;
 + (BOOL)mediaUpload4k;
