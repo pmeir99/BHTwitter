@@ -43,11 +43,6 @@ on:
         default: true
         required: false
         type: boolean
-      mac_compatibility:
-        description: "Experimental: optimize sideloaded IPA for Apple Silicon Mac"
-        default: false
-        required: false
-        type: boolean
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -228,64 +223,6 @@ jobs:
         env:
           IPA_EXT: ${{ inputs.deploy_format == 'trollstore' && 'tipa' || 'ipa' }}
 
-      - name: Apply experimental Apple Silicon Mac compatibility
-        if: ${{ inputs.mac_compatibility && (inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore') }}
-        run: |
-          set -euo pipefail
-          cd "${{ github.workspace }}/main"
-
-          ARTIFACT="$(find packages -maxdepth 1 -type f \( -name 'BHTwitter-sideloaded*.ipa' -o -name 'BHTwitter-trollstore*.tipa' \) -print -quit)"
-          if [ -z "$ARTIFACT" ]; then
-            echo "Could not find built IPA/TIPA for Mac compatibility patch."
-            exit 1
-          fi
-
-          WORK_DIR="$(mktemp -d)"
-          trap 'rm -rf "$WORK_DIR"' EXIT
-          unzip -q "$ARTIFACT" -d "$WORK_DIR"
-
-          APP_DIR="$(find "$WORK_DIR/Payload" -maxdepth 1 -type d -name '*.app' -print -quit)"
-          if [ -z "$APP_DIR" ]; then
-            echo "No .app bundle found in artifact."
-            exit 1
-          fi
-
-          PLIST="$APP_DIR/Info.plist"
-
-          # Keep the app an iOS app, but make its declared device support as
-          # Mac-friendly as possible. Apple Silicon Macs run compatible iOS
-          # apps using the iOS-on-Mac runtime; this is not a Catalyst conversion.
-          /usr/libexec/PlistBuddy -c "Delete :UIRequiresFullScreen" "$PLIST" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Delete :LSMinimumSystemVersion" "$PLIST" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Delete :LSRequiresNativeExecution" "$PLIST" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Delete :UIDeviceFamily" "$PLIST" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily array" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily:0 integer 1" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Add :UIDeviceFamily:1 integer 2" "$PLIST"
-
-          # Let an iPad-capable build use the Mac display/window environment.
-          /usr/libexec/PlistBuddy -c "Delete :UISupportsTrueScreenSizeOnMac" "$PLIST" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :UISupportsTrueScreenSizeOnMac bool true" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Delete :UILaunchToFullScreenByDefaultOnMac" "$PLIST" 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :UILaunchToFullScreenByDefaultOnMac bool false" "$PLIST"
-
-          # Re-sign the modified app bundle after changing Info.plist.
-          if command -v ldid >/dev/null 2>&1; then
-            find "$APP_DIR" -type f -perm +111 -print0 2>/dev/null | while IFS= read -r -d '' binary; do
-              ldid -S "$binary" 2>/dev/null || true
-            done
-            ldid -S "$APP_DIR/Twitter" 2>/dev/null || true
-          fi
-
-          rm -f "$ARTIFACT"
-          (
-            cd "$WORK_DIR"
-            zip -qry "${{ github.workspace }}/main/$ARTIFACT" Payload
-          )
-
-          echo "Applied experimental Apple Silicon Mac compatibility metadata:"
-          /usr/libexec/PlistBuddy -c "Print :UIDeviceFamily" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Print :UISupportsTrueScreenSizeOnMac" "$PLIST"
 
       - name: Pass package name
         id: package_name
