@@ -68,6 +68,7 @@ chmod +x ./build.sh
 - `--rootfull` : Build for rootfull deployment
 - `--rootless` : Build for rootless deployment
 - `--trollstore` : Build for TrollStore deployment
+- `--playcover` : Experimental Apple-silicon Mac build intended for PlayCover
 - *(No option)* or `--sideloaded` : Build for sideloaded deployment 
 
 
@@ -117,3 +118,32 @@ chmod +x ./build.sh
 ./build.sh --rootfull
 # You'll get: com.bandarhl.bhTwitter_4.2_iphoneos-arm.deb
 ```
+
+
+### Experimental PlayCover / macOS build
+
+The `bookmark-download-mac-experimental` branch includes the experimental
+"Replace Bookmark with Download" feature and a dedicated PlayCover build mode.
+
+```bash
+# Put a decrypted X IPA here:
+# packages/com.atebits.Tweetie2.ipa
+
+./build.sh --playcover
+```
+
+Output:
+
+```
+packages/BHTwitter-playcover.ipa
+```
+
+The PlayCover build removes app extensions, includes the sideload/keychain
+compatibility layer, relaxes device-family/full-screen hardware requirements,
+enables indirect pointer input, and skips BHTwitter camera/microphone permission
+prompts when iOS reports that the app is running on macOS.
+
+PlayCover still performs the final macOS wrapping/signing step. This is an
+experimental compatibility build, not a native Mac Catalyst conversion. X's own
+attestation/platform checks or future macOS/PlayCover changes may still prevent
+login or individual features from working.
