@@ -739,7 +739,16 @@ static NSURL *BHTranslateOpenInXURL(NSURL *url) {
     NSArray *_orig = %orig;
     NSMutableArray *newOrig = [_orig mutableCopy];
     
-    if ([BHTManager isVideoCell:arg1] && [BHTManager DownloadingVideos]) {
+    BOOL isVideo = [BHTManager isVideoCell:arg1];
+    BOOL replaceBookmark = [BHTManager replaceBookmarkWithDownload] && isVideo && [BHTManager DownloadingVideos];
+
+    // Experimental: replace X's bookmark slot with BHTwitter's existing
+    // download control. If the immersive player builds its controls through
+    // this shared inline-actions factory, this also replaces its bookmark.
+    if (replaceBookmark && [newOrig containsObject:%c(TTAStatusInlineBookmarkButton)]) {
+        NSUInteger bookmarkIndex = [newOrig indexOfObject:%c(TTAStatusInlineBookmarkButton)];
+        [newOrig replaceObjectAtIndex:bookmarkIndex withObject:%c(BHDownloadInlineButton)];
+    } else if (isVideo && [BHTManager DownloadingVideos]) {
         [newOrig addObject:%c(BHDownloadInlineButton)];
     }
     
