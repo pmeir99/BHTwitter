@@ -1,6 +1,7 @@
 #import "SAMKeychain/AuthViewController.h"
 #import "Colours/Colours.h"
 #import "BHTManager.h"
+#import "BHDownloadInlineButton.h"
 #import "BHTBundle/BHTBundle.h"
 #import "MobileCoreServices/MobileCoreServices.h"
 #import "MobileCoreServices/UTCoreTypes.h"
@@ -60,6 +61,168 @@ static NSURL *BHTranslateOpenInXURL(NSURL *url) {
     NSURL *translatedURL = components.URL;
     NSLog(@"[BHTwitter] Open in X translated %@ to %@", url.absoluteString, translatedURL.absoluteString);
     return translatedURL ?: url;
+}
+
+// MARK: Immersive player bookmark -> download replacement
+// FLEX identified the full-screen bookmark hierarchy as:
+// T1TwitterSwift.ImmersiveActionView ("Bookmark") -> TTAStatusInlineBookmarkButton.
+//
+// Keep X's 40x40 ImmersiveActionView in place and replace only its inner
+// bookmark button with the existing BHTwitter downloader when the setting is on.
+
+static const void *kBHImmersiveDownloadButtonKey = &kBHImmersiveDownloadButtonKey;
+static IMP BHOriginalImmersiveLayoutSubviewsIMP = NULL;
+
+static id BHSafeValueForKey(id obj, NSString *key) {
+    if (!obj || key.length == 0) return nil;
+    @try {
+        return [obj valueForKey:key];
+    } @catch (__unused NSException *e) {
+        return nil;
+    }
+}
+
+static BOOL BHIsImmersiveBookmarkActionView(UIView *view) {
+    if (!view) return NO;
+
+    NSString *label = view.accessibilityLabel;
+    if ([label caseInsensitiveCompare:@"Bookmark"] == NSOrderedSame) {
+        return YES;
+    }
+
+    for (UIView *subview in view.subviews) {
+        if ([subview isKindOfClass:objc_getClass("TTAStatusInlineBookmarkButton")]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
+static void BHConfigureImmersiveDownloadButton(UIView *actionView) {
+    if (!actionView || ![BHTManager replaceBookmarkWithDownload] || ![BHTManager DownloadingVideos]) {
+        return;
+    }
+
+    if (!BHIsImmersiveBookmarkActionView(actionView)) {
+        return;
+    }
+
+    UIButton *bookmarkButton = nil;
+    for (UIView *subview in actionView.subviews) {
+        if ([subview isKindOfClass:objc_getClass("TTAStatusInlineBookmarkButton")]) {
+            bookmarkButton = (UIButton *)subview;
+            break;
+        }
+    }
+
+    if (!bookmarkButton) return;
+
+    BHDownloadInlineButton *downloadButton = objc_getAssociatedObject(actionView, kBHImmersiveDownloadButtonKey);
+
+    if (!downloadButton) {
+        NSUInteger inlineType = 131;
+        id typeValue = BHSafeValueForKey(bookmarkButton, @"inlineActionType");
+        if ([typeValue respondsToSelector:@selector(unsignedIntegerValue)]) {
+            inlineType = [typeValue unsignedIntegerValue];
+        }
+
+        downloadButton = [[BHDownloadInlineButton alloc] initWithInlineActionType:inlineType
+                                                                           options:0
+                                                                      overrideSize:nil
+                                                                           account:nil];
+
+        // Preserve the exact inner-button geometry FLEX showed (22x40).
+        downloadButton.frame = bookmarkButton.frame;
+        downloadButton.autoresizingMask = bookmarkButton.autoresizingMask;
+        downloadButton.translatesAutoresizingMaskIntoConstraints = YES;
+        downloadButton.contentHorizontalAlignment = bookmarkButton.contentHorizontalAlignment;
+        downloadButton.contentVerticalAlignment = bookmarkButton.contentVerticalAlignment;
+        downloadButton.tintColor = UIColor.whiteColor;
+        downloadButton.accessibilityLabel = @"Download";
+        downloadButton.accessibilityHint = @"Download this video";
+
+        // Reuse X's own bookmark delegate/view-model wiring. The existing
+        // BHDownloadInlineButton download handler reads the current media from
+        // this delegate chain.
+        id delegate = BHSafeValueForKey(bookmarkButton, @"delegate");
+        if (delegate) {
+            @try { downloadButton.delegate = delegate; } @catch (__unused NSException *e) {}
+        }
+
+        id viewModel = BHSafeValueForKey(bookmarkButton, @"viewModel");
+        if (viewModel) {
+            @try { downloadButton.viewModel = viewModel; } @catch (__unused NSException *e) {}
+        }
+
+        [actionView addSubview:downloadButton];
+        objc_setAssociatedObject(actionView,
+                                 kBHImmersiveDownloadButtonKey,
+                                 downloadButton,
+                                 OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+
+    // X may relayout/recycle immersive cells while swiping. Follow the native
+    // bookmark's frame every time layoutSubviews runs.
+    downloadButton.frame = bookmarkButton.frame;
+    downloadButton.hidden = NO;
+    downloadButton.userInteractionEnabled = YES;
+    downloadButton.tintColor = UIColor.whiteColor;
+
+    // Refresh delegate/model as X reuses cells for the next video.
+    id delegate = BHSafeValueForKey(bookmarkButton, @"delegate");
+    if (delegate) {
+        @try { downloadButton.delegate = delegate; } @catch (__unused NSException *e) {}
+    }
+
+    id viewModel = BHSafeValueForKey(bookmarkButton, @"viewModel");
+    if (viewModel) {
+        @try { downloadButton.viewModel = viewModel; } @catch (__unused NSException *e) {}
+    }
+
+    // Keep the native control present for X's own layout, but invisible and
+    // non-interactive. This preserves the exact slot and avoids constraint churn.
+    bookmarkButton.hidden = YES;
+    bookmarkButton.userInteractionEnabled = NO;
+
+    actionView.accessibilityLabel = @"Download";
+}
+
+static void BHImmersiveActionViewLayoutSubviews(id self, SEL _cmd) {
+    if (BHOriginalImmersiveLayoutSubviewsIMP) {
+        ((void (*)(id, SEL))BHOriginalImmersiveLayoutSubviewsIMP)(self, _cmd);
+    }
+
+    BHConfigureImmersiveDownloadButton((UIView *)self);
+}
+
+static void BHInstallImmersiveDownloadHook(void) {
+    Class immersiveClass = objc_getClass("T1TwitterSwift.ImmersiveActionView");
+    if (!immersiveClass) {
+        NSLog(@"[BHTwitter] ImmersiveActionView class not found");
+        return;
+    }
+
+    Method method = class_getInstanceMethod(immersiveClass, @selector(layoutSubviews));
+    if (!method) {
+        NSLog(@"[BHTwitter] ImmersiveActionView layoutSubviews not found");
+        return;
+    }
+
+    IMP currentIMP = method_getImplementation(method);
+    if (currentIMP == (IMP)BHImmersiveActionViewLayoutSubviews) {
+        return;
+    }
+
+    BHOriginalImmersiveLayoutSubviewsIMP = currentIMP;
+    method_setImplementation(method, (IMP)BHImmersiveActionViewLayoutSubviews);
+    NSLog(@"[BHTwitter] Installed immersive bookmark-to-download hook");
+}
+
+__attribute__((constructor))
+static void BHImmersiveDownloadInit(void) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        BHInstallImmersiveDownloadHook();
+    });
 }
 
 // MARK: FLEX diagnostic explorer (bookmark-download-test only)
